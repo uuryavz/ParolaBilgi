@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ParolaBilgi</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .custom-scrollbar::-webkit-scrollbar {
+                width: 8px;
+            }
+            .custom-scrollbar::-webkit-scrollbar-track {
+                background: #f1f1f1;
+                border-radius: 4px;
+            }
+            .custom-scrollbar::-webkit-scrollbar-thumb {
+                background: #d8b4fe;
+                border-radius: 4px;
+            }
+            .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                background: #c084fc;
+            }
+        }
+    </style>
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel (JSX Derleyicisi) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Framer Motion -->
+    <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
+    
+    <!-- Lucide React Icons -->
+    <script src="https://unpkg.com/lucide-react@0.292.0/dist/lucide-react.min.js"></script>
+    
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+</head>
+<body class="bg-[#9c9c9c]">
+    <div id="root"></div>
+
+    <script type="text/babel" data-presets="react,typescript">
+        const { useState, useEffect, useRef } = React;
+        const { motion, AnimatePresence } = Motion;
+        
+        // Lucide ikonlarını global objeden al
+        const { 
+            Play, Save, Clock, Heart, Building2, Wand2, Trophy, 
+            CheckCircle, XCircle, RotateCcw, ArrowRight, Pause, 
+            HelpCircle, ChevronDown, ChevronUp, Check, X 
+        } = lucideReact;
+
+        // --- CONSTANTS ---
+        const TURKISH_ALPHABET = [
+            'A', 'B', 'C', 'Ç', 'D', 'E', 'F', 'G', 'H', 
+            'I', 'İ', 'J', 'K', 'L', 'M', 'N', 'O', 'Ö', 'P', 
+            'R', 'S', 'Ş', 'T', 'U', 'Ü', 'V', 'Y', 'Z'
+        ];
+
+        const DEFAULT_QUESTIONS = {
+            'A': { question: '', answer: '' },
+            'B': { question: '', answer: '' },
+            'C': { question: '', answer: '' },
+            'Ç': { question: '', answer: '' },
+            'D': { question: '', answer: '' },
+            'E': { question: '', answer: '' },
+            'F': { question: '', answer: '' },
+            'G': { question: '', answer: '' },
+            'H': { question: '', answer: '' },
+            'I': { question: '', answer: '' },
+            'İ': { question: '', answer: '' },
+            'J': { question: '', answer: '' },
+            'K': { question: '', answer: '' },
+            'L': { question: '', answer: '' },
+            'M': { question: '', answer: '' },
+            'N': { question: '', answer: '' },
+            'O': { question: '', answer: '' },
+            'Ö': { question: '', answer: '' },
+            'P': { question: '', answer: '' },
+            'R': { question: '', answer: '' },
+            'S': { question: '', answer: '' },
+            'Ş': { question: '', answer: '' },
+            'T': { question: '', answer: '' },
+            'U': { question: '', answer: '' },
+            'Ü': { question: '', answer: '' },
+            'V': { question: '', answer: '' },
+            'Y': { question: '', answer: '' },
+            'Z': { question: '', answer: '' },
+        };
+
+        const SAMPLE_QUESTIONS = {
+            'A': { question: 'Türkiye\'nin başkenti neresidir?', answer: 'Ankara' },
+            'B': { question: 'Denizde yaşayan en büyük memeli hayvan?', answer: 'Balina' },
+            'C': { question: 'Para koyduğumuz küçük çanta?', answer: 'Cüzdan' },
+            'Ç': { question: 'Kırmızı renkli, saplı yaz meyvesi?', answer: 'Çilek' },
+            'D': { question: 'Üzerinde yaşadığımız gezegen?', answer: 'Dünya' },
+            'E': { question: 'Kırmızı veya yeşil kabuklu meyve?', answer: 'Elma' },
+            'F': { question: 'Dişlerimizi temizlemek için kullandığımız araç?', answer: 'Fırça' },
+            'G': { question: 'Gökyüzündeki ısı ve ışık kaynağımız?', answer: 'Güneş' },
+            'H': { question: 'Uçan bir ulaşım aracı?', answer: 'Helikopter' },
+            'I': { question: 'Karanlıkta görmemizi sağlayan enerji?', answer: 'Işık' },
+            'İ': { question: 'Süt veren büyükbaş hayvan?', answer: 'İnek' },
+            'J': { question: 'Keskin kenarlı tıraş bıçağı?', answer: 'Jilet' },
+            'K': { question: 'Miyavlayan evcil hayvan?', answer: 'Kedi' },
+            'L': { question: 'Ekşi, sarı renkli meyve?', answer: 'Limon' },
+            'M': { question: 'Sarı renkli, uzun meyve?', answer: 'Muz' },
+            'N': { question: 'Atın ayağına çakılan demir?', answer: 'Nal' },
+            'O': { question: 'Öğrencilerin eğitim gördüğü yer?', answer: 'Okul' },
+            'Ö': { question: 'Okulda ders anlatan kişi?', answer: 'Öğretmen' },
+            'P': { question: 'Yön bulmamıza yarayan alet?', answer: 'Pusula' },
+            'R': { question: 'Uyurken gördüğümüz hayal?', answer: 'Rüya' },
+            'S': { question: 'İçtiğimiz şeffaf sıvı?', answer: 'Su' },
+            'Ş': { question: 'Yağmurdan korunmak için kullandığımız eşya?', answer: 'Şemsiye' },
+            'T': { question: 'Haberleşmeyi sağlayan cihaz?', answer: 'Telefon' },
+            'U': { question: 'Gökyüzünde süzülen kanatlı oyuncak?', answer: 'Uçurtma' },
+            'Ü': { question: 'Salkım salkım meyve?', answer: 'Üzüm' },
+            'V': { question: 'İçine çiçek konulan kap?', answer: 'Vazo' },
+            'Y': { question: 'Gece gökyüzünde parlayan cisimler?', answer: 'Yıldız' },
+            'Z': { question: 'Siyah beyaz çizgili hayvan?', answer: 'Zebra' },
+        };
+
+        const INITIAL_CONFIG = {
+            duration: 300,
+            livesPerQuestion: 3,
+            schoolName: '',
+            pointsPerCorrect: 10,
+            pointsPerWrong: 0,
+            questions: DEFAULT_QUESTIONS,
+            theme: 'sky'
+        };
+
+        // --- COMPONENTS ---
+
+        // LetterCircle Component
+        function LetterCircle({ currentLetter, statuses, onLetterClick }) {
+            const radius = 350; // Increased radius
+            const totalLetters = TURKISH_ALPHABET.length;
+            
+            const letters = TURKISH_ALPHABET.map((letter, index) => {
+                const angle = (index * (360 / totalLetters)) - 90;
+                const radian = (angle * Math.PI) / 180;
+                const x = Math.cos(radian) * radius;
+                const y = Math.sin(radian) * radius;
+                
+                return { letter, x, y, index };
+            });
+
+            const getStatusColor = (letter, status) => {
+                if (letter === currentLetter) return 'bg-blue-500 text-white ring-4 ring-blue-200 scale-125 z-10';
+                
+                switch (status) {
+                    case 'correct': return 'bg-green-500 text-white';
+                    case 'wrong': return 'bg-red-500 text-white';
+                    case 'pass': return 'bg-yellow-400 text-white';
+                    case 'pending': return 'bg-white text-gray-400 border-2 border-gray-200 hover:border-purple-300 hover:text-purple-500 cursor-pointer';
+                    default: return 'bg-white text-gray-400';
+                }
+            };
+
+            return (
+                <div className="relative w-[800px] h-[800px] mx-auto flex items-center justify-center">
+                    <div className="absolute inset-0 rounded-full border-[1px] border-gray-100/50 pointer-events-none" />
+                    
+                    {letters.map(({ letter, x, y }) => {
+                        const status = statuses[letter] || 'pending';
+                        const isCurrent = letter === currentLetter;
+                        const isClickable = status === 'pending' || status === 'pass';
+
+                        return (
+                            <motion.div
+                                key={letter}
+                                onClick={() => isClickable && onLetterClick(letter)}
+                                className={`absolute w-12 h-12 md:w-16 md:h-16 rounded-full flex items-center justify-center font-bold text-xl md:text-2xl shadow-sm transition-all duration-300 ${getStatusColor(letter, status)}`}
+                                style={{
+                                    left: '50%',
+                                    top: '50%',
+                                    x: x - 32,
+                                    y: y - 32,
+                                }}
+                                whileHover={isClickable ? { scale: 1.15 } : {}}
+                                animate={{
+                                    scale: isCurrent ? 1.3 : 1,
+                                }}
+                            >
+                                {letter}
+                            </motion.div>
+                        );
+                    })}
+                </div>
+            );
+        }
+
+        // SettingsPanel Component
+        function SettingsPanel({ onStartGame }) {
+            const [config, setConfig] = useState(INITIAL_CONFIG);
+            const [activeTab, setActiveTab] = useState('general');
+
+            const handleQuestionChange = (letter, field, value) => {
+                setConfig(prev => ({
+                    ...prev,
+                    questions: {
+                        ...prev.questions,
+                        [letter]: {
+                            ...prev.questions[letter],
+                            [field]: value
+                        }
+                    }
+                }));
+            };
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-4 md:p-8 font-sans">
+                    <motion.div 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="max-w-4xl mx-auto bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl overflow-hidden"
+                    >
+                        <div className="p-6 bg-white border-b border-gray-100 flex justify-between items-center">
+                            <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                                ParolaBilgi Ayarları
+                            </h1>
+                            <div className="flex space-x-2">
+                                <button
+                                    onClick={() => setActiveTab('general')}
+                                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                                        activeTab === 'general' 
+                                            ? 'bg-purple-100 text-purple-700' 
+                                            : 'text-gray-500 hover:bg-gray-100'
+                                    }`}
+                                >
+                                    Genel Ayarlar
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('questions')}
+                                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                                        activeTab === 'questions' 
+                                            ? 'bg-purple-100 text-purple-700' 
+                                            : 'text-gray-500 hover:bg-gray-100'
+                                    }`}
+                                >
+                                    Sorular (A-Z)
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="p-6 md:p-8 h-[60vh] overflow-y-auto custom-scrollbar">
+                            {activeTab === 'general' ? (
+                                <div className="space-y-8 max-w-lg mx-auto">
+                                    <div className="space-y-4">
+                                        <label className="block text-lg font-medium text-gray-700 flex items-center gap-2">
+                                            <Building2 className="w-5 h-5 text-blue-500" />
+                                            Okul / Kurum Adı (Opsiyonel)
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={config.schoolName || ''}
+                                            onChange={(e) => setConfig({ ...config, schoolName: e.target.value })}
+                                            placeholder=""
+                                            className="w-full px-4 py-3 rounded-xl border-2 border-purple-100 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all outline-none text-lg"
+                                        />
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <label className="block text-lg font-medium text-gray-700 flex items-center gap-2">
+                                            <Clock className="w-5 h-5 text-purple-500" />
+                                            Oyun Süresi
+                                        </label>
+                                        <div className="flex items-center gap-4">
+                                            <div className="flex-1">
+                                                <label className="block text-xs text-gray-500 mb-1 text-center">Dakika</label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={Math.floor(config.duration / 60)}
+                                                    onChange={(e) => {
+                                                        const mins = Math.max(0, parseInt(e.target.value) || 0);
+                                                        const secs = config.duration % 60;
+                                                        setConfig({ ...config, duration: (mins * 60) + secs });
+                                                    }}
+                                                    className="w-full px-4 py-3 rounded-xl border-2 border-purple-100 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all outline-none text-xl font-mono text-center"
+                                                />
+                                            </div>
+                                            <div className="text-2xl font-bold text-gray-400 mt-5">:</div>
+                                            <div className="flex-1">
+                                                <label className="block text-xs text-gray-500 mb-1 text-center">Saniye</label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    max="59"
+                                                    step="5"
+                                                    value={config.duration % 60}
+                                                    onChange={(e) => {
+                                                        const secs = Math.min(59, Math.max(0, parseInt(e.target.value) || 0));
+                                                        const mins = Math.floor(config.duration / 60);
+                                                        setConfig({ ...config, duration: (mins * 60) + secs });
+                                                    }}
+                                                    className="w-full px-4 py-3 rounded-xl border-2 border-purple-100 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all outline-none text-xl font-mono text-center"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <label className="block text-lg font-medium text-gray-700 flex items-center gap-2">
+                                            <Heart className="w-5 h-5 text-red-500" />
+                                            Soru Başına Yanlış Hakkı
+                                        </label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            value={config.livesPerQuestion}
+                                            onChange={(e) => setConfig({ ...config, livesPerQuestion: Math.max(1, parseInt(e.target.value) || 1) })}
+                                            className="w-full px-4 py-3 rounded-xl border-2 border-purple-100 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all outline-none text-xl font-mono text-center"
+                                        />
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <label className="block text-lg font-medium text-gray-700 flex items-center gap-2">
+                                            <Trophy className="w-5 h-5 text-yellow-500" />
+                                            Puan Ayarları
+                                        </label>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <label className="block text-sm font-medium text-gray-700 text-center">
+                                                    Doğru (+Puan)
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    max="10"
+                                                    value={config.pointsPerCorrect}
+                                                    onChange={(e) => setConfig({ ...config, pointsPerCorrect: Math.min(10, Math.max(0, parseInt(e.target.value) || 0)) })}
+                                                    className="w-full px-4 py-3 rounded-xl border-2 border-purple-100 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all outline-none text-xl font-mono text-center"
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="block text-sm font-medium text-gray-700 text-center">
+                                                    Yanlış (-Puan)
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    max="10"
+                                                    value={config.pointsPerWrong}
+                                                    onChange={(e) => setConfig({ ...config, pointsPerWrong: Math.min(10, Math.max(0, parseInt(e.target.value) || 0)) })}
+                                                    className="w-full px-4 py-3 rounded-xl border-2 border-purple-100 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all outline-none text-xl font-mono text-center"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-6">
+                                    <div className="grid gap-6">
+                                        {TURKISH_ALPHABET.map((letter) => (
+                                            <div key={letter} className="bg-gray-50 p-4 rounded-2xl border border-gray-100 hover:border-purple-200 transition-colors">
+                                                <div className="flex items-center gap-4 mb-3">
+                                                    <div className="w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-xl shadow-lg shadow-purple-200">
+                                                        {letter}
+                                                    </div>
+                                                    <h3 className="font-semibold text-gray-700">Harfi İçin Soru</h3>
+                                                </div>
+                                                <div className="grid md:grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Soru</label>
+                                                        <input
+                                                            type="text"
+                                                            value={config.questions[letter]?.question || ''}
+                                                            onChange={(e) => handleQuestionChange(letter, 'question', e.target.value)}
+                                                            placeholder="Soru"
+                                                            className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-100 outline-none"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Cevap</label>
+                                                        <input
+                                                            type="text"
+                                                            value={config.questions[letter]?.answer || ''}
+                                                            onChange={(e) => handleQuestionChange(letter, 'answer', e.target.value)}
+                                                            placeholder="Cevap"
+                                                            className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-100 outline-none"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-center">
+                            <button
+                                onClick={() => onStartGame(config)}
+                                className="group relative px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-2xl font-bold text-xl shadow-xl shadow-purple-200 hover:shadow-2xl hover:scale-105 transition-all duration-200 flex items-center gap-3"
+                            >
+                                <Play className="w-6 h-6 fill-current" />
+                                Oyunu Başlat
+                                <div className="absolute inset-0 rounded-2xl bg-white/20 blur-lg opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            );
+        }
+
+        // GameScene Component
+        function GameScene({ config, onRestart, onExit }) {
+            const [gameState, setGameState] = useState({
+                status: 'playing',
+                currentLetterIndex: 0,
+                activeLetter: null,
+                answers: {},
+                timeLeft: config.duration,
+                livesLeft: config.livesPerQuestion,
+                score: 0,
+                passCount: 0,
+                isPaused: false,
+            });
+
+            const [userAnswer, setUserAnswer] = useState('');
+            const [feedback, setFeedback] = useState(null);
+            const [showAnswers, setShowAnswers] = useState(false);
+            const inputRef = useRef(null);
+            const [showExitConfirm, setShowExitConfirm] = useState(false);
+
+            useEffect(() => {
+                if (gameState.status !== 'playing' || gameState.isPaused || showExitConfirm) return;
+
+                const timer = setInterval(() => {
+                    setGameState(prev => {
+                        if (prev.timeLeft <= 1) {
+                            return { ...prev, status: 'finished', timeLeft: 0 };
+                        }
+                        return { ...prev, timeLeft: prev.timeLeft - 1 };
+                    });
+                }, 1000);
+
+                return () => clearInterval(timer);
+            }, [gameState.status, gameState.isPaused, showExitConfirm]);
+
+            useEffect(() => {
+                if (gameState.activeLetter && gameState.status === 'playing') {
+                    setTimeout(() => inputRef.current?.focus(), 100);
+                }
+            }, [gameState.activeLetter, gameState.status]);
+
+            useEffect(() => {
+                const allAnswered = TURKISH_ALPHABET.every(letter => {
+                    const status = gameState.answers[letter];
+                    return status === 'correct' || status === 'wrong';
+                });
+
+                if (allAnswered && gameState.status === 'playing') {
+                    setGameState(prev => ({ ...prev, status: 'finished' }));
+                    confetti({
+                        particleCount: 100,
+                        spread: 70,
+                        origin: { y: 0.6 }
+                    });
+                }
+            }, [gameState.answers, gameState.status]);
+
+            const handleLetterClick = (letter) => {
+                if (gameState.status !== 'playing' || gameState.isPaused || feedback) return;
+                
+                setGameState(prev => ({
+                    ...prev,
+                    activeLetter: letter,
+                    livesLeft: config.livesPerQuestion
+                }));
+                setUserAnswer('');
+                setFeedback(null);
+            };
+
+            const formatTime = (seconds) => {
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            };
+
+            const handleAnswer = (e) => {
+                e?.preventDefault();
+                if (gameState.status !== 'playing' || !gameState.activeLetter || feedback) return;
+
+                const currentLetter = gameState.activeLetter;
+                const correctAnswer = config.questions[currentLetter]?.answer;
+                
+                const normalizedUser = userAnswer.toLocaleLowerCase('tr-TR').trim();
+                const normalizedCorrect = correctAnswer?.toLocaleLowerCase('tr-TR').trim() || '';
+
+                if (normalizedUser === normalizedCorrect) {
+                    setFeedback('correct');
+                    setGameState(prev => ({
+                        ...prev,
+                        score: prev.score + (config.pointsPerCorrect ?? 10),
+                        answers: { ...prev.answers, [currentLetter]: 'correct' }
+                    }));
+                    confetti({
+                        particleCount: 30,
+                        spread: 50,
+                        origin: { y: 0.7 },
+                        colors: ['#22c55e']
+                    });
+                    
+                    setTimeout(() => {
+                        setFeedback(null);
+                        setGameState(prev => ({ ...prev, activeLetter: null }));
+                    }, 1500);
+
+                } else {
+                    const newLivesLeft = gameState.livesLeft - 1;
+                    
+                    if (newLivesLeft <= 0) {
+                        setFeedback('wrong');
+                        setGameState(prev => ({
+                            ...prev,
+                            livesLeft: newLivesLeft,
+                            score: Math.max(0, prev.score - (config.pointsPerWrong ?? 0)),
+                            answers: { ...prev.answers, [currentLetter]: 'wrong' }
+                        }));
+                        
+                        setTimeout(() => {
+                            setFeedback(null);
+                            setGameState(prev => ({ ...prev, activeLetter: null }));
+                        }, 1500);
+                    } else {
+                        setGameState(prev => ({ ...prev, livesLeft: newLivesLeft }));
+                        
+                        const form = document.querySelector('form');
+                        form?.classList.add('animate-shake');
+                        setTimeout(() => form?.classList.remove('animate-shake'), 500);
+                        
+                        setUserAnswer('');
+                        inputRef.current?.focus();
+                    }
+                }
+            };
+
+            const handlePass = () => {
+                if (gameState.status !== 'playing' || !gameState.activeLetter || feedback) return;
+                
+                const currentLetter = gameState.activeLetter;
+                setFeedback('pass');
+                setGameState(prev => ({
+                    ...prev,
+                    passCount: prev.passCount + 1,
+                    answers: { ...prev.answers, [currentLetter]: 'pass' }
+                }));
+
+                setTimeout(() => {
+                    setFeedback(null);
+                    setGameState(prev => ({ ...prev, activeLetter: null }));
+                }, 1000);
+            };
+
+            const togglePause = () => {
+                setGameState(prev => ({ ...prev, isPaused: !prev.isPaused }));
+            };
+
+            const currentQuestion = gameState.activeLetter ? config.questions[gameState.activeLetter] : null;
+
+            if (gameState.status === 'finished') {
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center p-4">
+                        <motion.div 
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            className="bg-white rounded-3xl p-8 max-w-md w-full text-center shadow-2xl"
+                        >
+                            <Trophy className="w-20 h-20 text-yellow-400 mx-auto mb-6" />
+                            <h2 className="text-3xl font-bold text-gray-800 mb-2">Oyun Bitti!</h2>
+                            <p className="text-gray-500 mb-8">Harika bir iş çıkardın!</p>
+                            
+                            <div className="grid grid-cols-2 gap-4 mb-8">
+                                <div className="bg-purple-50 p-4 rounded-2xl">
+                                    <div className="text-sm text-purple-600 font-bold uppercase">Puan</div>
+                                    <div className="text-3xl font-bold text-purple-800">{gameState.score}</div>
+                                </div>
+                                <div className="bg-blue-50 p-4 rounded-2xl">
+                                    <div className="text-sm text-blue-600 font-bold uppercase">Kalan Süre</div>
+                                    <div className="text-3xl font-bold text-blue-800">{formatTime(gameState.timeLeft)}</div>
+                                </div>
+                            </div>
+
+                            <div className="mb-6">
+                                <button 
+                                    onClick={() => setShowAnswers(!showAnswers)}
+                                    className="w-full flex items-center justify-center gap-2 text-gray-600 hover:text-purple-600 font-semibold transition-colors py-2"
+                                >
+                                    {showAnswers ? 'Cevapları Gizle' : 'Tüm Sorular ve Cevapları Gör'}
+                                    {showAnswers ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                </button>
+                                
+                                <AnimatePresence>
+                                    {showAnswers && (
+                                        <motion.div
+                                            initial={{ height: 0, opacity: 0 }}
+                                            animate={{ height: 'auto', opacity: 1 }}
+                                            exit={{ height: 0, opacity: 0 }}
+                                            className="overflow-hidden"
+                                        >
+                                            <div className="max-h-64 overflow-y-auto custom-scrollbar space-y-3 pt-4 px-1 text-left">
+                                                {TURKISH_ALPHABET.map((letter) => {
+                                                    const status = gameState.answers[letter];
+                                                    const question = config.questions[letter];
+                                                    
+                                                    let borderClass = 'border-gray-200 bg-gray-50';
+                                                    let Icon = HelpCircle;
+                                                    let iconColor = 'text-gray-400';
+                                                    
+                                                    if (status === 'correct') {
+                                                        borderClass = 'border-green-200 bg-green-50';
+                                                        Icon = Check;
+                                                        iconColor = 'text-green-500';
+                                                    } else if (status === 'wrong') {
+                                                        borderClass = 'border-red-200 bg-red-50';
+                                                        Icon = X;
+                                                        iconColor = 'text-red-500';
+                                                    } else if (status === 'pass') {
+                                                        borderClass = 'border-yellow-200 bg-yellow-50';
+                                                        Icon = RotateCcw;
+                                                        iconColor = 'text-yellow-500';
+                                                    }
+
+                                                    return (
+                                                        <div key={letter} className={`border rounded-xl p-3 flex items-start gap-3 ${borderClass}`}>
+                                                            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center font-bold text-gray-700 shadow-sm shrink-0">
+                                                                {letter}
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="text-sm font-medium text-gray-800 mb-1 leading-snug">
+                                                                    {question?.question || 'Soru yok'}
+                                                                </div>
+                                                                <div className="text-xs text-gray-500 font-mono">
+                                                                    {question?.answer || '-'}
+                                                                </div>
+                                                            </div>
+                                                            <div className={`shrink-0 ${iconColor}`}>
+                                                                <Icon className="w-5 h-5" />
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
+
+                            <button
+                                onClick={onRestart}
+                                className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center justify-center gap-2"
+                            >
+                                <RotateCcw className="w-5 h-5" />
+                                Tekrar Oyna
+                            </button>
+                        </motion.div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen flex flex-col overflow-hidden font-sans transition-colors duration-500 bg-[#9c9c9c]">
+                    {/* Header Stats */}
+                    <div className="bg-white shadow-sm p-4 flex justify-between items-center z-10 relative h-28">
+                        <div className="flex items-center gap-2 md:gap-4">
+                            <div className="flex items-center gap-2 bg-blue-100 px-4 py-2 rounded-full text-blue-700 font-bold">
+                                <Clock className="w-5 h-5" />
+                                <span className="font-mono text-xl">{formatTime(gameState.timeLeft)}</span>
+                            </div>
+                            <button 
+                                onClick={togglePause}
+                                className={`p-2 rounded-full transition-colors ${gameState.isPaused ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                                title={gameState.isPaused ? "Devam Et" : "Durdur"}
+                            >
+                                {gameState.isPaused ? <Play className="w-6 h-6 fill-current" /> : <Pause className="w-6 h-6 fill-current" />}
+                            </button>
+                            <button 
+                                onClick={() => setShowExitConfirm(true)}
+                                className="px-4 py-2 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors cursor-pointer font-bold text-sm shadow-sm"
+                                title="Ayarlara Dön"
+                            >
+                                Ana Menü
+                            </button>
+                        </div>
+                        
+                        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full text-center pointer-events-none flex items-center justify-center h-full">
+                            <div className="text-4xl md:text-5xl font-extrabold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent py-4 px-2 inline-block leading-normal drop-shadow-sm">
+                                ParolaBilgi
+                            </div>
+                        </div>
+
+                        <div className="bg-purple-100 px-4 py-2 rounded-full text-purple-700 font-bold">
+                            Puan: {gameState.score}
+                        </div>
+                    </div>
+
+                    {config.schoolName && (
+                        <div className="w-full text-center mt-4 z-10">
+                            <div className="text-2xl font-bold text-white tracking-wider drop-shadow-md uppercase">
+                                {config.schoolName}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Main Game Area */}
+                    <div className="flex-1 relative flex flex-col items-center justify-center p-4">
+                        
+                        <div className="relative z-0 mb-8 md:mb-0 scale-[0.50] md:scale-100 origin-center">
+                            <LetterCircle 
+                                currentLetter={gameState.activeLetter} 
+                                statuses={gameState.answers} 
+                                onLetterClick={handleLetterClick}
+                            />
+                        </div>
+
+                        {/* Exit Confirmation Modal */}
+                        <AnimatePresence>
+                            {showExitConfirm && (
+                                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                                    <motion.div 
+                                        initial={{ scale: 0.9, opacity: 0 }}
+                                        animate={{ scale: 1, opacity: 1 }}
+                                        exit={{ scale: 0.9, opacity: 0 }}
+                                        className="bg-white rounded-2xl p-6 md:p-8 max-w-sm w-full shadow-2xl text-center"
+                                    >
+                                        <h3 className="text-xl font-bold text-gray-800 mb-4">
+                                            Ana Menüye Dön?
+                                        </h3>
+                                        <p className="text-gray-600 mb-8">
+                                            Ana menüye dönmek istediğinize emin misiniz? Mevcut oyun sıfırlanacak.
+                                        </p>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <button
+                                                onClick={() => setShowExitConfirm(false)}
+                                                className="px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold transition-colors"
+                                            >
+                                                Hayır
+                                            </button>
+                                            <button
+                                                onClick={onExit}
+                                                className="px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold transition-colors"
+                                            >
+                                                Evet
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                </div>
+                            )}
+                        </AnimatePresence>
+
+                        {/* Question Card (Centered) */}
+                        <AnimatePresence>
+                            {gameState.activeLetter && (
+                                <div className="absolute inset-0 flex items-center justify-center z-20 bg-black/5 backdrop-blur-[2px]">
+                                    <motion.div 
+                                        key={gameState.activeLetter}
+                                        initial={{ opacity: 0, scale: 0.9 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        exit={{ opacity: 0, scale: 0.9 }}
+                                        className="bg-white/95 backdrop-blur-md w-[90%] max-w-md p-6 md:p-8 rounded-3xl shadow-2xl border border-white/50 pointer-events-auto text-center relative"
+                                    >
+                                        <button 
+                                            onClick={() => setGameState(prev => ({ ...prev, activeLetter: null }))}
+                                            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+                                        >
+                                            <XCircle className="w-6 h-6" />
+                                        </button>
+
+                                        <div className="inline-block px-4 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-bold mb-4">
+                                            {gameState.activeLetter} Harfi
+                                        </div>
+
+                                        <div className="flex justify-center mb-4">
+                                            <div className="flex items-center gap-1 text-red-500 font-bold bg-red-50 px-3 py-1 rounded-full text-sm">
+                                                <Heart className="w-4 h-4 fill-current" />
+                                                {gameState.livesLeft}
+                                            </div>
+                                        </div>
+                                        
+                                        <h3 className="text-xl md:text-2xl font-bold text-gray-800 mb-6 leading-relaxed">
+                                            {currentQuestion?.question || 'Soru bulunamadı.'}
+                                        </h3>
+
+                                        {feedback ? (
+                                            <div className="py-8">
+                                                {feedback === 'correct' && (
+                                                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex flex-col items-center text-green-500">
+                                                        <CheckCircle className="w-20 h-20 mb-2" />
+                                                        <span className="text-2xl font-bold">DOĞRU!</span>
+                                                    </motion.div>
+                                                )}
+                                                {feedback === 'wrong' && (
+                                                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex flex-col items-center text-red-500">
+                                                        <XCircle className="w-20 h-20 mb-2" />
+                                                        <span className="text-2xl font-bold">YANLIŞ!</span>
+                                                    </motion.div>
+                                                )}
+                                                {feedback === 'pass' && (
+                                                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex flex-col items-center text-yellow-500">
+                                                        <RotateCcw className="w-20 h-20 mb-2" />
+                                                        <span className="text-2xl font-bold">PAS!</span>
+                                                    </motion.div>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <form onSubmit={handleAnswer} className="relative">
+                                                <div className="relative">
+                                                    <input
+                                                    ref={inputRef}
+                                                    type="text"
+                                                    value={userAnswer}
+                                                    onChange={(e) => setUserAnswer(e.target.value)}
+                                                    placeholder="Cevabınız..."
+                                                    className="w-full px-6 py-4 rounded-2xl border-2 border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 text-center text-xl font-bold outline-none transition-all"
+                                                    autoComplete="off"
+                                                    />
+                                                    {gameState.livesLeft < config.livesPerQuestion && (
+                                                        <motion.div 
+                                                            initial={{ opacity: 0, y: -10 }}
+                                                            animate={{ opacity: 1, y: 0 }}
+                                                            className="absolute -bottom-8 left-0 right-0 text-center text-red-500 font-bold text-sm"
+                                                        >
+                                                            Yanlış! {gameState.livesLeft} hakkın kaldı.
+                                                        </motion.div>
+                                                    )}
+                                                </div>
+                                                
+                                                <div className="grid grid-cols-2 gap-3 mt-8">
+                                                    <button
+                                                        type="button"
+                                                        onClick={handlePass}
+                                                        className="px-6 py-3 bg-yellow-400 hover:bg-yellow-500 text-yellow-900 rounded-xl font-bold transition-colors flex items-center justify-center gap-2"
+                                                    >
+                                                        <RotateCcw className="w-5 h-5" />
+                                                        Pas Geç
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleAnswer()}
+                                                        disabled={!userAnswer.trim()}
+                                                        className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    >
+                                                        Cevapla
+                                                        <ArrowRight className="w-5 h-5" />
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        )}
+                                    </motion.div>
+                                </div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                </div>
+            );
+        }
+
+        // App Component
+        function App() {
+            const [isPlaying, setIsPlaying] = useState(false);
+            const [gameConfig, setGameConfig] = useState(INITIAL_CONFIG);
+
+            const handleStartGame = (config) => {
+                setGameConfig(config);
+                setIsPlaying(true);
+            };
+
+            const handleRestart = () => {
+                setIsPlaying(false);
+            };
+
+            return (
+                <div className="antialiased text-gray-900">
+                    {isPlaying ? (
+                        <GameScene config={gameConfig} onRestart={handleRestart} onExit={handleRestart} />
+                    ) : (
+                        <SettingsPanel onStartGame={handleStartGame} />
+                    )}
+                </div>
+            );
+        }
+
+        // Render
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
